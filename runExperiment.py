@@ -4,11 +4,21 @@ from tqdm import tqdm
 from time import sleep
 
 INSTRUCTION_TRACKS = [None, None, None]
+AUDIO_CHANNELS = [None, None, None] # Left, both, right
+
+# Given a trial, return the location of the audio to play
+def audioFilesForTrial(trialNumber):
+    # TODO - generate files for trials.
+    leftPath = "/home/pat/code/python/eegbci/audio/commands/1.wav"
+    rghtPath = "/home/pat/code/python/eegbci/audio/commands/0.wav"
+    return leftPath, rghtPath
+
 
 def playInstructions(type):
     # Spend 5 seconds reading instructions for what to do in this trial:
     WAIT_TIME_SEC = 5.0
-    INSTRUCTION_TRACKS[type].play()
+    AUDIO_CHANNELS[1].play(INSTRUCTION_TRACKS[type])
+    # INSTRUCTION_TRACKS[type].play()
     sleep(5.0)
 
 # Given an ordering of types, make sure it follows the rules.
@@ -49,9 +59,19 @@ def generateOrder(seed=1234):
         typeOrder = np.random.permutation(typeOrder)
     return typeOrder
 
+# Plays audio for a single trial, and records the EEG signal
+def playTrialAudioAndRecord(trialNumber):
+    leftPath, rghtPath = audioFilesForTrial(trialNumber)
+    AUDIO_CHANNELS[0].play(pygame.mixer.Sound(leftPath))
+    AUDIO_CHANNELS[2].play(pygame.mixer.Sound(rghtPath))
+    AUDIO_CHANNELS[0].set_volume(1, 0)
+    AUDIO_CHANNELS[2].set_volume(0, 1)
+    sleep(3.0)
+
 # Runs a single trial, save results
 def runTrial(trialNumber, trialType):
     playInstructions(trialType)
+    playTrialAudioAndRecord(trialNumber)
 
 # Run all the trials
 def runExperiment():
@@ -67,6 +87,10 @@ def runExperiment():
     for trial in tqdm(range(3)):
         runTrial(trial, typeOrder[trial])
 
+    # Re-set audio channels, needs to be done after each play
+    for i in range(3):
+        AUDIO_CHANNELS[i].set_volume(0 if i == 2 else 1, 0 if i == 0 else 1)
+
 # Initialize dependencies
 def init():
     global INSTRUCTION_TRACKS
@@ -75,6 +99,8 @@ def init():
     print ("Initializing...")
     pygame.init()
     pygame.mixer.init()
+    for i in range(3):
+        AUDIO_CHANNELS[i] = pygame.mixer.Channel(i)
 
     # From https://text-to-speech-demo.mybluemix.net/
     # HACK: need better?
